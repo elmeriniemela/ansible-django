@@ -1,15 +1,15 @@
 ---
 
 - name: "Add nginx conf file for {{ django_hostname }}"
+  tags: django
   template:
     src: "www.thecodebase.site.ssl.conf"
-    dest: "{{ nginx_vhost_path }}/"
+    dest: /etc/nginx/sites-enabled
     force: true
     owner: root
-    group: "{{ root_group }}"
+    group: root
     mode: 0644
   notify: reload nginx
-
 
 
 - name: Install websites from github.
