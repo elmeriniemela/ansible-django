@@ -1,11 +1,11 @@
 {
     "POSTGRESQL": {
-        "USER": "{{ django_user }}",
+        "USER": "{{ websites_user }}",
         "PASSWORD": "{{ thecodebase_db_password }}"
     },
     "SECRET_KEY": "{{ thecodebase_secret_key }}",
     "ALLOWED_HOSTS": [
         "www.thecodebase.site"
     ],
-    "LOG_FILE": "{{ django_home_dir }}/log/django-application.log"
+    "LOG_FILE": "{{ websites_home_dir }}/log/django-application.log"
 }

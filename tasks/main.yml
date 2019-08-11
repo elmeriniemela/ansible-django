@@ -1,37 +1,36 @@
 ---
 
-- name: "Add nginx conf file for {{ django_hostname }}"
+- name: "Add nginx conf file django apps"
   tags: django
   template:
-    src: "www.thecodebase.site.ssl.conf"
-    dest: /etc/nginx/sites-enabled
+    src: django-nginx.conf
+    dest: "/etc/nginx/sites-enabled/{{ item.sub_domain }}.{{ item.main_domain }}.conf"
     force: true
     owner: root
     group: root
     mode: 0644
   notify: reload nginx
-
+  with_items: "{{ websites }}"
 
 - name: Install websites from github.
-  become_user: "{{ django_user }}"
+  become_user: "{{ websites_user }}"
   tags: django
   git:
-    repo: "https://github.com/thecodebasesite/{{ item }}.git"
-    dest: "{{ django_home_dir }}/{{ item }}"
+    repo: "https://github.com/thecodebasesite/{{ item.repo_name }}.git"
+    dest: "{{ websites_home_dir }}/{{ item.repo_name }}"
     version: master
     force: yes
     recursive: yes
-  with_items:
-    - django_thecodebase
+  with_items: "{{ websites }}"
   register: git_finished
 
 - name: "Add django system user"
   tags: django
   user:
-    name: "{{ django_user }}"
+    name: "{{ websites_user }}"
     comment: Django sys user
     shell: /bin/bash
-    home: "{{ django_home_dir }}"
+    home: "{{ websites_home_dir }}"
 
 - name: "Install dependency apt packages"
   tags: django
@@ -58,87 +57,95 @@
 
 - name: "Install website python requirements from requirements.txt"
   tags: django
-  become_user: "{{ django_user }}"
+  become_user: "{{ websites_user }}"
   pip:
-    requirements: "{{ django_home_dir }}/{{ item }}/requirements.txt"
+    requirements: "{{ websites_home_dir }}/{{ item.repo_name }}/requirements.txt"
     state: forcereinstall
     virtualenv: "{{ venv_path }}"
     virtualenv_python: /usr/bin/python3.6
   when: git_finished.changed
-  with_items:
-    - django_thecodebase
+  with_items: "{{ websites }}"
 
 - name: Config file for django websites
   tags: django
   template:
     src: "config.json"
-    dest: "{{ django_home_dir }}/{{ item }}/"
-    owner: "{{ django_user }}"
-    group: "{{ django_user }}"
-  with_items:
-    - django_thecodebase
+    dest: "{{ websites_home_dir }}/{{ item.repo_name }}/"
+    owner: "{{ websites_user }}"
+    group: "{{ websites_user }}"
+  with_items: "{{ websites }}"
 
 - name: Django manage.py migrate
   tags: django
-  become_user: "{{ django_user }}"
-  command: "{{ venv_path }}/bin/python {{ django_home_dir }}/{{ item }}/manage.py migrate"
+  become_user: "{{ websites_user }}"
+  command: "{{ venv_path }}/bin/python {{ websites_home_dir }}/{{ item.repo_name }}/manage.py migrate"
   register: result
   when: git_finished.changed
   changed_when:
     - '"No migrations to apply." not in result.stdout'
-  with_items:
-    - django_thecodebase
+  with_items: "{{ websites }}"
 
 - name: Django manage.py collectstatic --noinput
   tags: django
-  become_user: "{{ django_user }}"
-  command: "{{ venv_path }}/bin/python {{ django_home_dir }}/{{ item }}/manage.py collectstatic --noinput"
+  become_user: "{{ websites_user }}"
+  command: "{{ venv_path }}/bin/python {{ websites_home_dir }}/{{ item.repo_name }}/manage.py collectstatic --noinput"
   register: collectstatic_result
   when: git_finished.changed
   changed_when:
     - 'collectstatic_result.stdout_lines[-1].startswith("0 static files copied") == False or "unmodified" not in collectstatic_result.stdout'
-  with_items:
-    - django_thecodebase
+  with_items: "{{ websites }}"
 
 - name: Django manage.py check --deploy (Check that security settings are OK)
   tags: django
-  become_user: "{{ django_user }}"
-  command: "{{ venv_path }}/bin/python {{ django_home_dir }}/{{ item }}/manage.py check --deploy"
+  become_user: "{{ websites_user }}"
+  command: "{{ venv_path }}/bin/python {{ websites_home_dir }}/{{ item.repo_name }}/manage.py check --deploy"
   register: result
   when: git_finished.changed
   failed_when:
     - '"System check identified no issues (0 silenced)." not in result.stdout'
   changed_when:
     - 'False == True'
-  with_items:
-    - django_thecodebase
+  with_items: "{{ websites }}"
 
 - name: Create logging directory for django applications and uwsgi
   tags: django
-  become_user: "{{ django_user }}"
+  become_user: "{{ websites_user }}"
   file:
-    path: "{{ django_home_dir }}/log"
+    path: "{{ websites_home_dir }}/log"
     state: directory
+
+- name: "Add nginx conf file django apps"
+  tags: django
+  template:
+    src: uwsgi.ini
+    dest: "{{ websites_home_dir }}/{{ item.repo_name }}.ini"
+    force: true
+    owner: "{{ websites_user }}"
+    group: "{{ websites_user }}"
+    mode: 0644
+  with_items: "{{ websites }}"
 
 - name: Creating a systemd Unit File for uWSGI
   tags: django
   template:
     src: "django-website.service"
-    dest: "/etc/systemd/system/{{ item }}.service"
+    dest: "/etc/systemd/system/{{ item.repo_name }}.service"
     owner: root
     group: root
     mode: 0644
   register: systemd_result
-  with_items:
-    - django_thecodebase
+  with_items: "{{ websites }}"
 
+- name: Run daemon-reload before doing any other operations
+  tags: django
+  systemd:
+    daemon_reload: yes
+  # when: systemd_result.changed
 
 - name: Enable uWSGI service
   tags: django
   service:
-    name: "{{ item }}"
+    name: "{{ item.repo_name }}"
     enabled: yes
     state: restarted
-  # when: git_finished.changed or systemd_result.changed
-  with_items:
-    - django_thecodebase
+  with_items: "{{ websites }}"
