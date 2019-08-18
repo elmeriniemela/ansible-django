@@ -16,7 +16,7 @@
   become_user: "{{ websites_user }}"
   tags: django
   git:
-    repo: "https://github.com/thecodebasesite/{{ item.repo_name }}.git"
+    repo: "{{ item.repo_https_base_url }}/{{ item.repo_name }}.git"
     dest: "{{ websites_home_dir }}/{{ item.repo_name }}"
     version: master
     force: yes
@@ -114,7 +114,7 @@
     path: "{{ websites_home_dir }}/log"
     state: directory
 
-- name: "Add nginx conf file django apps"
+- name: "Add uwsgi.ini file django apps"
   tags: django
   template:
     src: uwsgi.ini

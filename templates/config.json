@@ -3,7 +3,7 @@
         "USER": "{{ websites_user }}",
         "PASSWORD": "{{ thecodebase_db_password }}"
     },
-    "SECRET_KEY": "{{ thecodebase_secret_key }}",
+    "SECRET_KEY": "{{ website_secret_key }}",
     "ALLOWED_HOSTS": [
         "www.thecodebase.site"
     ],
