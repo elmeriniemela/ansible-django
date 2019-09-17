@@ -1,7 +1,7 @@
 {
     "POSTGRESQL": {
         "USER": "{{ websites_user }}",
-        "PASSWORD": "{{ thecodebase_db_password }}"
+        "PASSWORD": "{{ website_db_password }}"
     },
     "SECRET_KEY": "{{ website_secret_key }}",
     "ALLOWED_HOSTS": [
