@@ -1,0 +1,43 @@
+
+
+- name: Create SSL dir
+  tags: django
+  file:
+    path: "{{ item.ssl_path }}"
+    state: directory
+  with_items: "{{ websites }}"
+
+
+- name: Move SSL certs
+  tags: django
+  template:
+    src: "{{ item.ssl_fullchain }}"
+    dest: "{{ item.ssl_path }}/"
+    owner: root
+    group: root
+  with_items: "{{ websites }}"
+
+- name: Move SSL keys
+  tags: django
+  template:
+    src: "{{ item.ssl_key }}"
+    dest: "{{ item.ssl_path }}/"
+    owner: root
+    group: root
+  with_items: "{{ websites }}"
+
+- name: Generate an OpenSSL private key with the default values (4096 bits, RSA)
+  openssl_privatekey:
+    path: /etc/nginx/ssl/nginx.key
+
+- openssl_csr:
+    path: /etc/nginx/ssl/nginx.csr
+    privatekey_path: /etc/nginx/ssl/nginx.key
+    common_name: "*"
+
+- name: Generate a Self Signed OpenSSL certificate
+  openssl_certificate:
+    path: /etc/nginx/ssl/nginx.crt
+    privatekey_path: /etc/nginx/ssl/nginx.key
+    csr_path: /etc/nginx/ssl/nginx.csr
+    provider: selfsigned

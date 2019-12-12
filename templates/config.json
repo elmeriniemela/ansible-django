@@ -5,7 +5,7 @@
     },
     "SECRET_KEY": "{{ website_secret_key }}",
     "ALLOWED_HOSTS": [
-        "www.thecodebase.site"
+        "www.thecodebase.tech"
     ],
     "LOG_FILE": "{{ websites_home_dir }}/log/django-application.log"
 }
