@@ -1,13 +1,5 @@
 
 
-- name: Create SSL dir
-  tags: django
-  file:
-    path: "{{ item.ssl_path }}"
-    state: directory
-  with_items: "{{ websites }}"
-
-
 - name: Move SSL certs
   tags: django
   template:
@@ -16,6 +8,7 @@
     owner: root
     group: root
   with_items: "{{ websites }}"
+  notify: reload nginx
 
 - name: Move SSL keys
   tags: django
@@ -25,6 +18,20 @@
     owner: root
     group: root
   with_items: "{{ websites }}"
+  notify: reload nginx
+
+- name: Move thecodebase.tech-*
+  tags: django
+  template:
+    src: "{{ item }}"
+    dest: "/etc/nginx/ssl/thecodebase.tech/"
+    owner: root
+    group: root
+  with_items:
+    - thecodebase.tech-fullchain.pem
+    - thecodebase.tech-key.pem
+
+  notify: reload nginx
 
 - name: Generate an OpenSSL private key with the default values (4096 bits, RSA)
   openssl_privatekey:

@@ -157,3 +157,14 @@
     enabled: yes
     state: restarted
   with_items: "{{ websites }}"
+
+- name: Create SSL dir
+  tags: django
+  file:
+    path: "{{ item.ssl_path }}"
+    state: directory
+  with_items: "{{ websites }}"
+  register: ssl_dir
+
+- include_tasks: ssl-certs.yml
+  when: ssl_dir is changed
