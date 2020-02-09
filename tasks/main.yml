@@ -1,13 +1,5 @@
 ---
 
-- name: "Add django system user"
-  tags: django
-  user:
-    name: "{{ websites_user }}"
-    comment: Django sys user
-    shell: /bin/bash
-    home: "{{ websites_home_dir }}"
-
 - name: Create logging directory for django applications and uwsgi
   tags: django
   become_user: "{{ websites_user }}"
@@ -123,6 +115,17 @@
     - 'False == True'
   with_items: "{{ websites }}"
 
+- name: Django manage.py createsuperuser
+  tags: django
+  become_user: "{{ websites_user }}"
+  shell: echo "from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.create_superuser('{{ item.django_admin.login }}', '{{ item.django_admin.email }}', '{{ item.django_admin.password }}')" | {{ venv_path }}/bin/python {{ websites_home_dir }}/{{ item.repo_name }}/manage.py shell
+  register: superuser_result
+  failed_when:
+    - 'False == True'
+  changed_when:
+    - '"already exists" not in superuser_result.stdout'
+  with_items: "{{ websites }}"
+
 - name: "Add uwsgi.ini file django apps"
   tags: django
   template:
@@ -166,5 +169,22 @@
   with_items: "{{ websites }}"
   register: ssl_dir
 
-- include_tasks: ssl-certs.yml
-  when: ssl_dir is changed
+# - include_tasks: ssl-certs.yml
+#   when: ssl_dir is changed
+
+- name: Generate an OpenSSL private key with the default values (4096 bits, RSA)
+  openssl_privatekey:
+    path: /etc/nginx/ssl/nginx.key
+
+- openssl_csr:
+    path: /etc/nginx/ssl/nginx.csr
+    privatekey_path: /etc/nginx/ssl/nginx.key
+    common_name: "*"
+
+- name: Generate a Self Signed OpenSSL certificate
+  openssl_certificate:
+    path: /etc/nginx/ssl/nginx.crt
+    privatekey_path: /etc/nginx/ssl/nginx.key
+    csr_path: /etc/nginx/ssl/nginx.csr
+    provider: selfsigned
+  notify: reload nginx
