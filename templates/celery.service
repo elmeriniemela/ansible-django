@@ -1,0 +1,12 @@
+Description=Celery instance to serve {{ item.repo_name }}
+After=network.target
+
+[Service]
+User={{ websites_user }}
+Group={{ websites_user }}
+WorkingDirectory={{ websites_home_dir }}/{{ item.repo_name }}
+Environment="PATH={{ venv_path }}/bin"
+ExecStart={{ venv_path }}/bin/celery --app={{ item.project_name }} worker --loglevel=info --logfile={{ websites_home_dir }}/log/{{ item.repo_name }}-celery.log
+
+[Install]
+WantedBy=multi-user.target

@@ -58,6 +58,7 @@
       - python3-setuptools
       - python3-venv
       - libpq-dev
+      - rabbitmq-server
     state: present
 
 
@@ -145,13 +146,41 @@
     owner: root
     group: root
     mode: 0644
-  register: systemd_result
+  with_items: "{{ websites }}"
+
+
+- name: Creating a systemd Unit File for Celery
+  tags: django
+  template:
+    src: "celery.service"
+    dest: "/etc/systemd/system/{{ item.repo_name }}_celery.service"
+    owner: root
+    group: root
+    mode: 0644
   with_items: "{{ websites }}"
 
 - name: Run daemon-reload before doing any other operations
   tags: django
   systemd:
     daemon_reload: yes
+
+- name: Enable Celery service
+  tags: django
+  service:
+    name: "{{ item.repo_name }}_celery"
+    enabled: yes
+    state: restarted
+  with_items: "{{ websites }}"
+
+
+
+- name: Restart RabbitMQ service
+  tags: django
+  service:
+    enabled: yes
+    name: rabbitmq-server
+    state: started
+
 
 - name: Enable uWSGI service
   tags: django
